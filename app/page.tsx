@@ -220,7 +220,7 @@ export default function Home() {
         )}
 
         <p className="text-center text-xs text-gray-400">
-          Cron runs weekdays at 22:00 UTC · powered by Alpha Vantage
+          Cron runs weekdays at 22:00 UTC · powered by Yahoo Finance
         </p>
       </div>
     </main>

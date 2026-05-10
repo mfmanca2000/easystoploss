@@ -1,12 +1,4 @@
-const BASE_URL = 'https://www.alphavantage.co/query';
-
-interface DailyEntry {
-  '1. open': string;
-  '2. high': string;
-  '3. low': string;
-  '4. close': string;
-  '5. volume': string;
-}
+import yahooFinance from 'yahoo-finance2';
 
 export interface StockCheckResult {
   symbol: string;
@@ -16,36 +8,27 @@ export interface StockCheckResult {
 }
 
 export async function checkStock(symbol: string): Promise<StockCheckResult> {
-  const url = `${BASE_URL}?function=TIME_SERIES_DAILY&symbol=${encodeURIComponent(symbol)}&outputsize=full&apikey=${process.env.ALPHA_VANTAGE_API_KEY}`;
+  // 220 calendar days comfortably covers 150 trading days
+  const period1 = new Date();
+  period1.setDate(period1.getDate() - 220);
 
-  const res = await fetch(url, { cache: 'no-store' });
-  if (!res.ok) throw new Error(`Alpha Vantage HTTP error: ${res.status}`);
+  const quotes = await yahooFinance.historical(symbol, { period1, interval: '1d' });
 
-  const data = await res.json();
+  if (!quotes || quotes.length === 0) {
+    throw new Error(`No data found for: ${symbol}`);
+  }
 
-  if (data['Error Message']) throw new Error(`Unknown symbol: ${symbol}`);
-  if (data['Note']) throw new Error(`Alpha Vantage rate limit reached: ${data['Note']}`);
-  if (data['Information']) throw new Error(`Alpha Vantage error: ${data['Information']}`);
-
-  const timeSeries: Record<string, DailyEntry> = data['Time Series (Daily)'];
-  if (!timeSeries) throw new Error(`No time series data for: ${symbol}`);
-
-  // Sort dates descending (most recent first) and extract closing prices
-  const closingPrices = Object.entries(timeSeries)
-    .sort(([a], [b]) => b.localeCompare(a))
-    .map(([, values]) => parseFloat(values['4. close']));
+  // historical() returns oldest-first; reverse so index 0 = most recent
+  const closingPrices = quotes.map(q => q.close).reverse();
 
   if (closingPrices.length < 150) {
-    throw new Error(`Not enough history for ${symbol} (need 150 days, got ${closingPrices.length})`);
+    throw new Error(
+      `Not enough history for ${symbol} (need 150 trading days, got ${closingPrices.length})`
+    );
   }
 
   const currentPrice = closingPrices[0];
   const sma150 = closingPrices.slice(0, 150).reduce((a, b) => a + b, 0) / 150;
 
-  return {
-    symbol,
-    currentPrice,
-    sma150,
-    isBelowSMA: currentPrice < sma150,
-  };
+  return { symbol, currentPrice, sma150, isBelowSMA: currentPrice < sma150 };
 }
