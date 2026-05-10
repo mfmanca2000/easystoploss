@@ -1,6 +1,7 @@
 import { getDb, ensureIndexes } from './db';
 import { checkStock } from './alpha-vantage';
 import { sendAlert } from './email';
+import { sendPushNotification } from './push-notification';
 
 export interface CheckResult {
   symbol: string;
@@ -47,7 +48,10 @@ export async function runAlertCheck(): Promise<CheckResult[]> {
         continue;
       }
 
-      await sendAlert(symbol, currentPrice, sma150);
+      await Promise.all([
+        sendAlert(symbol, currentPrice, sma150),
+        sendPushNotification(symbol, currentPrice, sma150),
+      ]);
       await db
         .collection('alert_history')
         .insertOne({ symbol, triggeredAt: today, currentPrice, sma150 });
