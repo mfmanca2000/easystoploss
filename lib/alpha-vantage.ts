@@ -1,9 +1,14 @@
 import yahooFinanceModule from 'yahoo-finance2';
 
-// The package exports an instance as default but the .d.ts declares the class
-// constructor, so TypeScript rejects instance methods. Cast to the instance type
-// so we get correct types without redefining them manually.
-const yahooFinance = yahooFinanceModule as unknown as InstanceType<typeof yahooFinanceModule>;
+// historical() is mixed in dynamically so it doesn't appear on the declared type.
+// Cast to a minimal interface covering only what we use.
+type YF = {
+  historical: (
+    symbol: string,
+    opts: { period1: Date; interval: string }
+  ) => Promise<Array<{ date: Date; close: number }>>;
+};
+const yahooFinance = yahooFinanceModule as unknown as YF;
 
 export interface StockCheckResult {
   symbol: string;
