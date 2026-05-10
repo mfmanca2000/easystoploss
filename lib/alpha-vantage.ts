@@ -1,11 +1,9 @@
-type HistoricalRow = { date: Date; close: number };
-type YahooFinance = {
-  historical: (symbol: string, opts: { period1: Date; interval: string }) => Promise<HistoricalRow[]>;
-};
+import yahooFinanceModule from 'yahoo-finance2';
 
-// require() avoids a class-vs-instance mismatch in yahoo-finance2's type declarations
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const yahooFinance = (require('yahoo-finance2') as { default: YahooFinance }).default;
+// The package exports an instance as default but the .d.ts declares the class
+// constructor, so TypeScript rejects instance methods. Cast to the instance type
+// so we get correct types without redefining them manually.
+const yahooFinance = yahooFinanceModule as unknown as InstanceType<typeof yahooFinanceModule>;
 
 export interface StockCheckResult {
   symbol: string;
