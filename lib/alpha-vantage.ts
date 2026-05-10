@@ -1,15 +1,3 @@
-import yahooFinanceModule from 'yahoo-finance2';
-
-// historical() is mixed in dynamically so it doesn't appear on the declared type.
-// Cast to a minimal interface covering only what we use.
-type YF = {
-  historical: (
-    symbol: string,
-    opts: { period1: Date; interval: string }
-  ) => Promise<Array<{ date: Date; close: number }>>;
-};
-const yahooFinance = yahooFinanceModule as unknown as YF;
-
 export interface StockCheckResult {
   symbol: string;
   currentPrice: number;
@@ -19,26 +7,39 @@ export interface StockCheckResult {
 
 export async function checkStock(symbol: string): Promise<StockCheckResult> {
   // 220 calendar days comfortably covers 150 trading days
-  const period1 = new Date();
-  period1.setDate(period1.getDate() - 220);
+  const period2 = Math.floor(Date.now() / 1000);
+  const period1 = period2 - 220 * 24 * 60 * 60;
 
-  const quotes = await yahooFinance.historical(symbol, { period1, interval: '1d' });
+  const url =
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}` +
+    `?interval=1d&period1=${period1}&period2=${period2}`;
 
-  if (!quotes || quotes.length === 0) {
-    throw new Error(`No data found for: ${symbol}`);
+  const res = await fetch(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0' },
+    cache: 'no-store',
+  });
+
+  if (!res.ok) throw new Error(`Yahoo Finance HTTP error: ${res.status}`);
+
+  const data = await res.json();
+  const result = data?.chart?.result?.[0];
+
+  if (!result) {
+    const err = data?.chart?.error?.description ?? 'No data returned';
+    throw new Error(`Yahoo Finance: ${err}`);
   }
 
-  // historical() returns oldest-first; reverse so index 0 = most recent
-  const closingPrices = quotes.map(q => q.close).reverse();
+  // Filter nulls (holidays/missing), then reverse so index 0 = most recent
+  const closes: number[] = (result.indicators.quote[0].close as (number | null)[])
+    .filter((c): c is number => c !== null)
+    .reverse();
 
-  if (closingPrices.length < 150) {
-    throw new Error(
-      `Not enough history for ${symbol} (need 150 trading days, got ${closingPrices.length})`
-    );
+  if (closes.length < 150) {
+    throw new Error(`Not enough history for ${symbol} (need 150 trading days, got ${closes.length})`);
   }
 
-  const currentPrice = closingPrices[0];
-  const sma150 = closingPrices.slice(0, 150).reduce((a, b) => a + b, 0) / 150;
+  const currentPrice = closes[0];
+  const sma150 = closes.slice(0, 150).reduce((a, b) => a + b, 0) / 150;
 
   return { symbol, currentPrice, sma150, isBelowSMA: currentPrice < sma150 };
 }
