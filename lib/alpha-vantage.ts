@@ -24,7 +24,8 @@ export async function checkStock(symbol: string): Promise<StockCheckResult> {
   const data = await res.json();
 
   if (data['Error Message']) throw new Error(`Unknown symbol: ${symbol}`);
-  if (data['Note'] || data['Information']) throw new Error('Alpha Vantage rate limit reached');
+  if (data['Note']) throw new Error(`Alpha Vantage rate limit reached: ${data['Note']}`);
+  if (data['Information']) throw new Error(`Alpha Vantage error: ${data['Information']}`);
 
   const timeSeries: Record<string, DailyEntry> = data['Time Series (Daily)'];
   if (!timeSeries) throw new Error(`No time series data for: ${symbol}`);
