@@ -1,4 +1,11 @@
-import yahooFinance from 'yahoo-finance2';
+type HistoricalRow = { date: Date; close: number };
+type YahooFinance = {
+  historical: (symbol: string, opts: { period1: Date; interval: string }) => Promise<HistoricalRow[]>;
+};
+
+// require() avoids a class-vs-instance mismatch in yahoo-finance2's type declarations
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const yahooFinance = (require('yahoo-finance2') as { default: YahooFinance }).default;
 
 export interface StockCheckResult {
   symbol: string;
