@@ -39,6 +39,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [testingNotification, setTestingNotification] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [checkResults, setCheckResults] = useState<CheckResult[] | null>(null);
 
@@ -79,6 +80,12 @@ export default function Home() {
       body: JSON.stringify({ symbol: sym }),
     });
     await fetchStocks();
+  };
+
+  const testNotification = async () => {
+    setTestingNotification(true);
+    await fetch('/api/test-notification', { method: 'POST' });
+    setTestingNotification(false);
   };
 
   const runCheck = async () => {
@@ -129,13 +136,22 @@ export default function Home() {
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-gray-800">Watchlist</h2>
-            <button
-              onClick={runCheck}
-              disabled={checking || stocks.length === 0}
-              className="text-sm bg-gray-900 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-4 py-2 rounded-xl font-medium transition-colors"
-            >
-              {checking ? 'Checking…' : 'Run check now'}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={testNotification}
+                disabled={testingNotification}
+                className="text-sm bg-blue-100 hover:bg-blue-200 disabled:opacity-40 disabled:cursor-not-allowed text-blue-700 px-4 py-2 rounded-xl font-medium transition-colors"
+              >
+                {testingNotification ? 'Sending…' : 'Test notification'}
+              </button>
+              <button
+                onClick={runCheck}
+                disabled={checking || stocks.length === 0}
+                className="text-sm bg-gray-900 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-4 py-2 rounded-xl font-medium transition-colors"
+              >
+                {checking ? 'Checking…' : 'Run check now'}
+              </button>
+            </div>
           </div>
 
           {loading ? (
