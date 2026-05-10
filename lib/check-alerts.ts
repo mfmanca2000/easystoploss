@@ -1,4 +1,4 @@
-import { sql, initDb } from './db';
+import { getDb, ensureIndexes } from './db';
 import { checkStock } from './alpha-vantage';
 import { sendAlert } from './email';
 
@@ -11,42 +11,47 @@ export interface CheckResult {
 }
 
 export async function runAlertCheck(): Promise<CheckResult[]> {
-  await initDb();
+  await ensureIndexes();
+  const db = await getDb();
 
-  const stocks = await sql<{ symbol: string }[]>`SELECT symbol FROM watched_stocks ORDER BY symbol`;
+  const stocks = await db
+    .collection<{ symbol: string }>('watched_stocks')
+    .find({}, { projection: { symbol: 1 } })
+    .sort({ symbol: 1 })
+    .toArray();
+
   const results: CheckResult[] = [];
 
   for (const { symbol } of stocks) {
     try {
       const { currentPrice, sma150, isBelowSMA } = await checkStock(symbol);
 
-      await sql`
-        UPDATE watched_stocks
-        SET current_price = ${currentPrice}, sma150 = ${sma150}, last_checked_at = NOW()
-        WHERE symbol = ${symbol}
-      `;
+      await db.collection('watched_stocks').updateOne(
+        { symbol },
+        { $set: { currentPrice, sma150, lastCheckedAt: new Date() } }
+      );
 
       if (!isBelowSMA) {
         results.push({ symbol, status: 'above_sma', currentPrice, sma150 });
         continue;
       }
 
-      // Only send one alert per stock per day
+      // Only send one alert per stock per calendar day
       const today = new Date().toISOString().split('T')[0];
-      const existing = await sql`
-        SELECT id FROM alert_history WHERE symbol = ${symbol} AND triggered_at = ${today}
-      `;
+      const existing = await db
+        .collection('alert_history')
+        .findOne({ symbol, triggeredAt: today });
 
-      if (existing.length > 0) {
+      if (existing) {
         results.push({ symbol, status: 'below_sma_already_alerted', currentPrice, sma150 });
         continue;
       }
 
       await sendAlert(symbol, currentPrice, sma150);
-      await sql`
-        INSERT INTO alert_history (symbol, triggered_at, current_price, sma150)
-        VALUES (${symbol}, ${today}, ${currentPrice}, ${sma150})
-      `;
+      await db
+        .collection('alert_history')
+        .insertOne({ symbol, triggeredAt: today, currentPrice, sma150 });
+
       results.push({ symbol, status: 'alert_sent', currentPrice, sma150 });
 
     } catch (err) {

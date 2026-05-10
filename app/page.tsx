@@ -3,12 +3,12 @@
 import { useState, useEffect, useCallback } from 'react';
 
 interface Stock {
-  id: number;
+  _id: string;
   symbol: string;
-  current_price: string | null;
-  sma150: string | null;
-  last_checked_at: string | null;
-  added_at: string;
+  currentPrice: number | null;
+  sma150: number | null;
+  lastCheckedAt: string | null;
+  addedAt: string;
 }
 
 interface CheckResult {
@@ -145,13 +145,13 @@ export default function Home() {
           ) : (
             <ul className="divide-y divide-gray-100">
               {stocks.map(stock => {
-                const price = stock.current_price ? parseFloat(stock.current_price) : null;
-                const sma = stock.sma150 ? parseFloat(stock.sma150) : null;
+                const price = stock.currentPrice;
+                const sma = stock.sma150;
                 const isBelow = price !== null && sma !== null && price < sma;
                 const isAbove = price !== null && sma !== null && price >= sma;
 
                 return (
-                  <li key={stock.id} className="py-4 flex items-start justify-between gap-4">
+                  <li key={stock._id} className="py-4 flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-mono font-bold text-gray-900">{stock.symbol}</span>
@@ -176,8 +176,8 @@ export default function Home() {
                           Price: <span className="font-medium text-gray-700">${price.toFixed(2)}</span>
                           {' · '}
                           SMA150: <span className="font-medium text-gray-700">${sma.toFixed(2)}</span>
-                          {stock.last_checked_at && (
-                            <> · checked {new Date(stock.last_checked_at).toLocaleDateString()}</>
+                          {stock.lastCheckedAt && (
+                            <> · checked {new Date(stock.lastCheckedAt).toLocaleDateString()}</>
                           )}
                         </p>
                       )}

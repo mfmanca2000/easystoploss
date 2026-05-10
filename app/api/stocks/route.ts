@@ -1,14 +1,23 @@
 import { NextResponse } from 'next/server';
-import { sql, initDb } from '@/lib/db';
+import { getDb, ensureIndexes } from '@/lib/db';
 
 export async function GET() {
-  await initDb();
-  const stocks = await sql`SELECT * FROM watched_stocks ORDER BY added_at DESC`;
-  return NextResponse.json(stocks);
+  await ensureIndexes();
+  const db = await getDb();
+  const stocks = await db
+    .collection('watched_stocks')
+    .find({})
+    .sort({ addedAt: -1 })
+    .toArray();
+
+  return NextResponse.json(
+    stocks.map(s => ({ ...s, _id: s._id.toString() }))
+  );
 }
 
 export async function POST(request: Request) {
-  await initDb();
+  await ensureIndexes();
+  const db = await getDb();
   const body = await request.json();
   const symbol = typeof body?.symbol === 'string' ? body.symbol.trim().toUpperCase() : null;
 
@@ -16,22 +25,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid symbol' }, { status: 400 });
   }
 
-  const result = await sql`
-    INSERT INTO watched_stocks (symbol)
-    VALUES (${symbol})
-    ON CONFLICT (symbol) DO NOTHING
-    RETURNING *
-  `;
-
-  if (result.length === 0) {
-    return NextResponse.json({ error: `${symbol} is already in your watchlist` }, { status: 409 });
+  try {
+    const result = await db.collection('watched_stocks').insertOne({
+      symbol,
+      currentPrice: null,
+      sma150: null,
+      lastCheckedAt: null,
+      addedAt: new Date(),
+    });
+    return NextResponse.json({ _id: result.insertedId.toString(), symbol }, { status: 201 });
+  } catch (err: unknown) {
+    if ((err as { code?: number }).code === 11000) {
+      return NextResponse.json({ error: `${symbol} is already in your watchlist` }, { status: 409 });
+    }
+    return NextResponse.json({ error: 'Failed to add stock' }, { status: 500 });
   }
-
-  return NextResponse.json(result[0], { status: 201 });
 }
 
 export async function DELETE(request: Request) {
-  await initDb();
   const body = await request.json();
   const symbol = typeof body?.symbol === 'string' ? body.symbol.trim().toUpperCase() : null;
 
@@ -39,6 +50,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Symbol is required' }, { status: 400 });
   }
 
-  await sql`DELETE FROM watched_stocks WHERE symbol = ${symbol}`;
+  const db = await getDb();
+  await db.collection('watched_stocks').deleteOne({ symbol });
   return NextResponse.json({ success: true });
 }

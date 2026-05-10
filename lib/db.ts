@@ -1,26 +1,30 @@
-import { neon } from '@neondatabase/serverless';
+import { MongoClient, Db } from 'mongodb';
 
-export const sql = neon(process.env.DATABASE_URL!);
+const uri = process.env.MONGODB_URI!;
 
-export async function initDb() {
-  await sql`
-    CREATE TABLE IF NOT EXISTS watched_stocks (
-      id SERIAL PRIMARY KEY,
-      symbol VARCHAR(10) NOT NULL UNIQUE,
-      current_price DECIMAL(10,4),
-      sma150 DECIMAL(10,4),
-      last_checked_at TIMESTAMPTZ,
-      added_at TIMESTAMPTZ DEFAULT NOW()
-    )
-  `;
-  await sql`
-    CREATE TABLE IF NOT EXISTS alert_history (
-      id SERIAL PRIMARY KEY,
-      symbol VARCHAR(10) NOT NULL,
-      triggered_at DATE NOT NULL,
-      current_price DECIMAL(10,4),
-      sma150 DECIMAL(10,4),
-      UNIQUE(symbol, triggered_at)
-    )
-  `;
+// Reuse the connection across hot-reloads in development
+const globalWithMongo = global as typeof globalThis & {
+  _mongoClientPromise?: Promise<MongoClient>;
+};
+
+let clientPromise: Promise<MongoClient>;
+
+if (process.env.NODE_ENV === 'development') {
+  if (!globalWithMongo._mongoClientPromise) {
+    globalWithMongo._mongoClientPromise = new MongoClient(uri).connect();
+  }
+  clientPromise = globalWithMongo._mongoClientPromise;
+} else {
+  clientPromise = new MongoClient(uri).connect();
+}
+
+export async function getDb(): Promise<Db> {
+  const client = await clientPromise;
+  return client.db('easystoploss');
+}
+
+export async function ensureIndexes() {
+  const db = await getDb();
+  await db.collection('watched_stocks').createIndex({ symbol: 1 }, { unique: true });
+  await db.collection('alert_history').createIndex({ symbol: 1, triggeredAt: 1 }, { unique: true });
 }
