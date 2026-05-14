@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { StockChart } from '@/components/StockChart';
 
 interface Stock {
   _id: string;
@@ -42,6 +43,7 @@ export default function Home() {
   const [testingNotification, setTestingNotification] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [checkResults, setCheckResults] = useState<CheckResult[] | null>(null);
+  const [chartSymbol, setChartSymbol] = useState<string | null>(null);
 
   const fetchStocks = useCallback(async () => {
     const res = await fetch('/api/stocks');
@@ -167,43 +169,60 @@ export default function Home() {
                 const isAbove = price !== null && sma !== null && price >= sma;
 
                 return (
-                  <li key={stock._id} className="py-4 flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-mono font-bold text-gray-900">{stock.symbol}</span>
-                        {isBelow && (
-                          <span className="text-xs bg-red-50 text-red-600 border border-red-200 px-2 py-0.5 rounded-full font-medium">
-                            Below SMA150
-                          </span>
-                        )}
-                        {isAbove && (
-                          <span className="text-xs bg-green-50 text-green-600 border border-green-200 px-2 py-0.5 rounded-full font-medium">
-                            Above SMA150
-                          </span>
-                        )}
-                        {price === null && (
-                          <span className="text-xs bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">
-                            Not checked yet
-                          </span>
+                  <li key={stock._id} className="py-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono font-bold text-gray-900">{stock.symbol}</span>
+                          {isBelow && (
+                            <span className="text-xs bg-red-50 text-red-600 border border-red-200 px-2 py-0.5 rounded-full font-medium">
+                              Below SMA150
+                            </span>
+                          )}
+                          {isAbove && (
+                            <span className="text-xs bg-green-50 text-green-600 border border-green-200 px-2 py-0.5 rounded-full font-medium">
+                              Above SMA150
+                            </span>
+                          )}
+                          {price === null && (
+                            <span className="text-xs bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">
+                              Not checked yet
+                            </span>
+                          )}
+                        </div>
+                        {price !== null && sma !== null && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Price: <span className="font-medium text-gray-700">${price.toFixed(2)}</span>
+                            {' · '}
+                            SMA150: <span className="font-medium text-gray-700">${sma.toFixed(2)}</span>
+                            {stock.lastCheckedAt && (
+                              <> · checked {new Date(stock.lastCheckedAt).toLocaleDateString()}</>
+                            )}
+                          </p>
                         )}
                       </div>
-                      {price !== null && sma !== null && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Price: <span className="font-medium text-gray-700">${price.toFixed(2)}</span>
-                          {' · '}
-                          SMA150: <span className="font-medium text-gray-700">${sma.toFixed(2)}</span>
-                          {stock.lastCheckedAt && (
-                            <> · checked {new Date(stock.lastCheckedAt).toLocaleDateString()}</>
-                          )}
-                        </p>
-                      )}
+                      <div className="flex items-center gap-2 shrink-0 pt-0.5">
+                        <button
+                          onClick={() => setChartSymbol(chartSymbol === stock.symbol ? null : stock.symbol)}
+                          className={`text-xs px-2 py-0.5 rounded-lg font-medium transition-colors ${
+                            chartSymbol === stock.symbol
+                              ? 'bg-blue-100 text-blue-600'
+                              : 'text-gray-400 hover:text-blue-500 hover:bg-blue-50'
+                          }`}
+                        >
+                          Chart
+                        </button>
+                        <button
+                          onClick={() => removeStock(stock.symbol)}
+                          className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => removeStock(stock.symbol)}
-                      className="shrink-0 text-xs text-gray-400 hover:text-red-500 transition-colors pt-0.5"
-                    >
-                      Remove
-                    </button>
+                    {chartSymbol === stock.symbol && (
+                      <StockChart symbol={stock.symbol} />
+                    )}
                   </li>
                 );
               })}
