@@ -1,8 +1,7 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function sendAlert(symbol: string, currentPrice: number, sma150: number) {
+  const resend = new Resend(process.env.RESEND_API_KEY);
   const pctBelow = (((sma150 - currentPrice) / sma150) * 100).toFixed(2);
   const date = new Date().toLocaleDateString('en-US', { dateStyle: 'long' });
 
