@@ -49,13 +49,14 @@ export async function GET(req: NextRequest) {
 
   const timestamps: number[] = result.timestamp ?? [];
   const closes: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
+  const volumes: (number | null)[] = result.indicators?.quote?.[0]?.volume ?? [];
 
-  // Build sorted ascending list of valid (date, price) pairs
-  const points: { date: string; price: number }[] = [];
+  // Build sorted ascending list of valid (date, price, volume) pairs
+  const points: { date: string; price: number; volume: number }[] = [];
   for (let i = 0; i < timestamps.length; i++) {
     if (closes[i] != null) {
       const date = new Date(timestamps[i] * 1000).toISOString().slice(0, 10);
-      points.push({ date, price: closes[i] as number });
+      points.push({ date, price: closes[i] as number, volume: volumes[i] ?? 0 });
     }
   }
 
@@ -64,7 +65,7 @@ export async function GET(req: NextRequest) {
   cutoff.setDate(cutoff.getDate() - CALENDAR_DAYS[interval]);
   const cutoffStr = cutoff.toISOString().slice(0, 10);
 
-  const chartData: { date: string; price: number; sma150: number }[] = [];
+  const chartData: { date: string; price: number; sma150: number; volume: number; avgVolume: number }[] = [];
 
   for (let i = 0; i < points.length; i++) {
     if (points[i].date < cutoffStr) continue;
@@ -73,10 +74,16 @@ export async function GET(req: NextRequest) {
     const slice = points.slice(i - 149, i + 1);
     const sma150 = slice.reduce((sum, p) => sum + p.price, 0) / 150;
 
+    // 20-day rolling average volume
+    const volSlice = points.slice(Math.max(0, i - 19), i + 1);
+    const avgVolume = Math.round(volSlice.reduce((sum, p) => sum + p.volume, 0) / volSlice.length);
+
     chartData.push({
       date: points[i].date,
       price: Math.round(points[i].price * 100) / 100,
       sma150: Math.round(sma150 * 100) / 100,
+      volume: points[i].volume,
+      avgVolume,
     });
   }
 
