@@ -13,6 +13,7 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'EasyStopLoss',
+    images: [{ url: '/apple-touch-icon.png' }],
   },
   other: {
     'mobile-web-app-capable': 'yes',
