@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { StockChart } from '@/components/StockChart';
 
 interface Stock {
@@ -35,6 +36,7 @@ const STATUS_COLOR: Record<CheckResult['status'], string> = {
 };
 
 export default function Home() {
+  const router = useRouter();
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [symbol, setSymbol] = useState('');
   const [loading, setLoading] = useState(true);
@@ -43,6 +45,11 @@ export default function Home() {
   const [addError, setAddError] = useState<string | null>(null);
   const [checkResults, setCheckResults] = useState<CheckResult[] | null>(null);
   const [chartSymbol, setChartSymbol] = useState<string | null>(null);
+
+  const logout = async () => {
+    await fetch('/api/logout', { method: 'POST' });
+    router.push('/login');
+  };
 
   const fetchStocks = useCallback(async () => {
     const res = await fetch('/api/stocks');
@@ -98,9 +105,17 @@ export default function Home() {
       <div className="max-w-xl mx-auto space-y-6">
 
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">EasyStopLoss</h1>
-          <p className="text-gray-500 mt-1">Email alerts when a stock drops below its 150-day moving average</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">EasyStopLoss</h1>
+            <p className="text-gray-500 mt-1">Email alerts when a stock drops below its 150-day moving average</p>
+          </div>
+          <button
+            onClick={logout}
+            className="text-sm text-gray-400 hover:text-gray-600 transition-colors mt-1"
+          >
+            Sign out
+          </button>
         </div>
 
         {/* Add Stock */}
