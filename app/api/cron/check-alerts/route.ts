@@ -8,6 +8,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const day = new Date().getDay();
+  if (day === 0 || day === 6) {
+    return NextResponse.json({ skipped: 'weekend' });
+  }
+
   const results = await runAlertCheck();
   return NextResponse.json({ results });
 }
