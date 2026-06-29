@@ -6,9 +6,9 @@ export interface StockCheckResult {
 }
 
 export async function checkStock(symbol: string): Promise<StockCheckResult> {
-  // 220 calendar days comfortably covers 150 trading days
+  // 300 calendar days comfortably covers 150 trading days (accounting for weekends/holidays)
   const period2 = Math.floor(Date.now() / 1000);
-  const period1 = period2 - 220 * 24 * 60 * 60;
+  const period1 = period2 - 300 * 24 * 60 * 60;
 
   const url =
     `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}` +
